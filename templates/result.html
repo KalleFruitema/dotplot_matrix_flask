@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Result</title>
+    <link rel="stylesheet" type="text/css" href="../static/style.css">
 </head>
 <body>
-    <table>
+    <table class="dotplot">
         {% for row in data %}
-            <tr>
+            <tr class="dotplot_row">
             {% for el in row %}
-                <td>{{ el }}</td>
+                {{ el }}
             {% endfor %}
             </tr>
         {% endfor %}

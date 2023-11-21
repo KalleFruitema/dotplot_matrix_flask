@@ -1,0 +1,13 @@
+.dotplot{
+    width: 500px;
+    height: 500px;
+    border-collapse: collapse;
+}
+
+.dotplot_row{
+    height: inherit;
+}
+
+.dotplot_cell{
+    font-family: 'Courier New', Courier, monospace;
+}
