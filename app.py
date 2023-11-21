@@ -2,8 +2,7 @@ from markupsafe import Markup
 from math import floor
 from pprint import pprint
 
-from flask import Flask, render_template, url_for, redirect, \
-    session, request
+from flask import Flask, render_template, url_for, redirect, session, request
 
 from packages.alignment_tool import ScoreMatrix, AlignMatrix, Score
 
