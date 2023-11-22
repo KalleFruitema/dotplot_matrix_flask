@@ -60,7 +60,6 @@ def pairwise():
 
 def direct_check():
     color_matrix = []
-    #TODO maak dit
     for nuc in session["seq2"]:
         row = []
         for nuc2 in session["seq1"]:
