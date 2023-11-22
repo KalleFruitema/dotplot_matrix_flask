@@ -37,9 +37,9 @@ def normalise(values):
 @app.route('/result')
 def result():
     scorematrix = ScoreMatrix('static/matrixes/BLOSUM62.csv')
-    alignmatrix = AlignMatrix(session["seq1"],
-                              session["seq2"],
-                              scorematrix)
+    alignmatrix = AlignMatrix(session["seq1"], session["seq2"],
+                              scorematrix, aligntype='N-W')
+    #TODO verschillende lijsten values met aantal stappen uit alignmenttool
     all_values = [int(val.__repr__()) if type(val) == Score else val
                   for row in alignmatrix.matrix 
                   for val in row]
@@ -49,12 +49,10 @@ def result():
     row_length = len(alignmatrix.matrix[0]) 
     for i in range(0, (col_length + 1) * row_length, row_length):
         color_matrix.append(Markup("<td class=\"dotplot_cell\""
-                                   f"style=\"background: rgb({val}, {val}, "
-                                   f"{val});\"></td>") 
-                                   if type(val) == int else 
-                                   Markup("<td class=\"dotplot_cell\">"
-                                          f"</td>") 
-                                   for val in new_values[i:i + row_length])
+                                   f"style=\"background: rgb({val}, {val},"
+                                   f" {val});\"></td>") 
+                                   for val in new_values[i:i + row_length]
+                                   if type(val) == int)
     return render_template('result.html',
                            data=color_matrix)
 
