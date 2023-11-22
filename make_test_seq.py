@@ -16,6 +16,11 @@ def reverse_complement():
     return seq, seq.reverse_complement()
 
 
+def reverse():
+    seq = random_seq(500)
+    return seq, seq[::-1]
+
+
 def inversie():
     seq1 = random_seq(500)
     seq2 = Seq(seq1[:200] + seq1.reverse_complement()[200:300] + seq1[300:])
@@ -38,6 +43,7 @@ def main():
     functies = {
         'comp': complement, 
         'rev_comp': reverse_complement, 
+        'reverse': reverse,
         'inverse': inversie, 
         'double_gap': double_gap, 
         'gap': gap}

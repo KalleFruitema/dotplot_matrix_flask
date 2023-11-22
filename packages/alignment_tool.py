@@ -97,17 +97,17 @@ class AlignMatrix(Matrix):
                 if ri == 0 or ci == 0:
                     continue
                 if ri == 1 and ci == 1:
-                    self.matrix[ri][ci] = 0
+                    best_direc, direction = 0, 'ORIGIN'
                 elif ri == 1:
                     if self.aligntype == 'S-W':
-                        self.matrix[ri][ci] = Score(0, None)
+                        best_direc, direction = 0, None
                     else:
-                        self.matrix[ri][ci] = Score(self.matrix[ri][ci-1] + int(self.scorematrix.get_gap_val()), '→')
+                        best_direc, direction = self.matrix[ri][ci-1] + int(self.scorematrix.get_gap_val()), '→'
                 elif ci == 1:
                     if self.aligntype == 'S-W':
-                        self.matrix[ri][ci] = Score(0, None)
+                        best_direc, direction = 0, None
                     else:
-                        self.matrix[ri][ci] = Score(self.matrix[ri-1][ci] + int(self.scorematrix.get_gap_val()), '↓')
+                        best_direc, direction = self.matrix[ri-1][ci] + int(self.scorematrix.get_gap_val()), '↓'
                 else:
                     up = self.matrix[ri-1][ci] + int(self.scorematrix.get_gap_val())
                     left = self.matrix[ri][ci-1] + int(self.scorematrix.get_gap_val())
@@ -137,18 +137,28 @@ class AlignMatrix(Matrix):
                                 direction = '→'
                             if x == self.matrix[ri-1][ci-1]:
                                 direction = '↘'
-                    self.matrix[ri][ci] = Score(best_direc, direction)
+                if direction == "↓":
+                    last_square = self.matrix[ri-1][ci]
+                elif direction == "→":
+                    last_square = self.matrix[ri][ci-1]
+                elif direction == "↘":
+                    last_square = self.matrix[ri-1][ci-1]
+                else:
+                    last_square = None
+                self.matrix[ri][ci] = Score(best_direc, direction, last_square)
 
-    def get_aligntable(self, origintable=False):
+    def get_aligntable(self, table_type='num'):
         table = ""
         for ri, row in enumerate(self.matrix):
             for ci, col in enumerate(row):
                 try:
-                    if origintable:
+                    if table_type == 'origin':
                         if col.get_origin() == None:
                             table += (f"{'0':>4}")
                         else:
                             table += (f"{col.get_origin():>4}")
+                    elif table_type == 'step':
+                        table += (f"{col.get_steps():>4}")
                     else:
                         table += (f"{col.__str__():>4}")
                 except:
@@ -259,10 +269,17 @@ class AlignMatrix(Matrix):
     
 
 class Score:
-    def __init__(self, number, direction) -> None:
+    def __init__(self, number, direction, last_square) -> None:
         self.number = number
         self.direction = direction
+        self.steps = self.__get_steps(last_square)
         self.origin = self.__make_origin()
+
+    def __get_steps(self, last_square):
+        if self.direction in [None, 'ORIGIN']:
+            return 0
+        else:
+            return last_square.steps + 1
 
     def __make_origin(self):
         match self.direction:
@@ -278,6 +295,9 @@ class Score:
             
     def get_origin(self):
         return self.origin
+    
+    def get_steps(self):
+        return self.steps
 
     def __eq__(self, __value: object) -> bool:
         return __value == self.number
@@ -598,7 +618,7 @@ class OTUpair:
 
 
 def main():
-    matrix_path = "kimura_matrix.csv"
+    matrix_path = "tests/kimura_matrix.csv"
     seq1 = "ACCGAATTTTGCT"
     seq2 = "ACTCGAATCCT"
     # seq1 = "ATCCT"
@@ -606,39 +626,40 @@ def main():
     nucl_score_matrix = ScoreMatrix(matrix_path)
     alignment = AlignMatrix(seq1, seq2, nucl_score_matrix)
     print(alignment.get_aligntable())
-    print(alignment.get_aligntable(origintable=True))
+    print(alignment.get_aligntable(table_type='origin'))
     print(alignment)
     print(alignment.get_alignscore())
 
     seq3 = 'GKLEWTCAGHN'
     seq4 = 'ADGWERTGCA'
-    aa_score_matrix = ScoreMatrix('PAM300.csv')
+    aa_score_matrix = ScoreMatrix('tests/PAM300.csv')
     aa_alignment = AlignMatrix(seq3, seq4, aa_score_matrix)
     print(aa_alignment.get_aligntable())
-    print(aa_alignment.get_aligntable(origintable=True))
+    print(aa_alignment.get_aligntable(table_type='origin'))
     print(aa_alignment)
     print(aa_alignment.get_alignscore())
 
     aa_alignment2 = AlignMatrix(seq3, seq4, aa_score_matrix,
                                 aligntype='S-W')
     print(aa_alignment2.get_aligntable())
-    print(aa_alignment2.get_aligntable(origintable=True))
+    print(aa_alignment2.get_aligntable(table_type='origin'))
     print(aa_alignment2)
     print(aa_alignment2.get_alignscore())
 
     seq5 = 'CGGACGGATGACC'
     seq6 = 'AACTAGACGCTCTTAAGT'
     alignment2 = AlignMatrix(seq5, seq6, nucl_score_matrix,
-                             aligntype='S-W')
+                             aligntype='N-W')
     print(alignment2.get_aligntable())
-    print(alignment2.get_aligntable(origintable=True))
+    print(alignment2.get_aligntable(table_type='origin'))
+    print(alignment2.get_aligntable(table_type='step'))
     print(alignment2)
     print(alignment2.get_alignscore())
     
     print(alignment2.get_real_alignscore())
 
-    dm = DistanceMatrix(sequences="tree_seqs.fa", scorematrix=nucl_score_matrix)
-    print(dm)
+    # dm = DistanceMatrix(sequences="tree_seqs.fa", scorematrix=nucl_score_matrix)
+    # print(dm)
 
 
 def main2():
@@ -668,4 +689,4 @@ def main_opdracht():
 
 
 if __name__ == "__main__":
-    main_opdracht()
+    main()
