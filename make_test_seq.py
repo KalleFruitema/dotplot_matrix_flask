@@ -23,7 +23,7 @@ def reverse():
 
 def inversie():
     seq1 = random_seq(500)
-    seq2 = Seq(seq1[:200] + seq1.reverse_complement()[200:300] + seq1[300:])
+    seq2 = Seq(seq1[:200] + seq1[200:300][::-1] + seq1[300:])
     return seq1, seq2
 
 
@@ -47,9 +47,14 @@ def main():
         'inverse': inversie, 
         'double_gap': double_gap, 
         'gap': gap}
+    fasta_fmt = ''
     for naam, func in functies.items():
         seq1, seq2 = func()
-        print(f"\n{naam}\n{seq1}\n{seq2}\n")
+        fasta_fmt += f">{naam}_1\n{seq1}\n>{naam}_2\n{seq2}\n"
+    fasta_fmt = fasta_fmt.strip('\n')
+
+    with open('test_sequences.fa', 'w') as file:
+        file.write(fasta_fmt)
 
 
 if __name__ == "__main__":
