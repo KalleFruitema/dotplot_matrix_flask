@@ -46,14 +46,13 @@ def normalise(values):
 
 
 def make_color_matrix(norm_values, col_length, row_length):
-    color_matrix = []
-    for i in range(0, (col_length + 1) * row_length, row_length):
-        color_matrix.append([Markup("<td class=\"dotplot_cell\""
-                                    f"style=\"background: rgb({val}, {val},"
-                                    f" {val});\"></td>")
-                                   for val in norm_values[i:i + row_length]
-                                   if type(val) == int])
-    return color_matrix
+    return [[Markup("<td class=\"dotplot_cell\" "
+                    f"style=\"background: rgb({val}, {val},"
+                    f" {val});\"></td>")
+                    for val in norm_values[i:i + row_length]
+                    if type(val) == int]
+                    for i in range(0, (col_length + 1) * 
+                                    row_length, row_length)]
 
 
 def pairwise():
