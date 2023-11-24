@@ -1,8 +1,11 @@
 from markupsafe import Markup
 from math import floor
 from pprint import pprint
+import json
 
 from flask import Flask, render_template, url_for, redirect, session, request
+from PIL import Image
+from uuid import uuid4
 
 from packages.alignment_tool import ScoreMatrix, AlignMatrix, Score
 
@@ -19,6 +22,10 @@ def home():
         session["seq2"] = request.form['seq2']
         session["matrix_type"] = request.form['matrix_type']
         session["seqtype"] = request.form['seqtype']
+        try:
+            session["pairwise_type"] = request.form["pairwise_type"]
+        except Exception:
+            session["pairwise_type"] = None
         return redirect(url_for('result'))
     return render_template("home.html")
 
@@ -45,7 +52,8 @@ def normalise(values):
     return norm
 
 
-def make_color_matrix(norm_values, col_length, row_length):
+# OUTDATED
+def make_color_matrix_html(norm_values, col_length, row_length):
     return [[Markup("<td class=\"dotplot_cell\" "
                     f"style=\"background: rgb({val}, {val},"
                     f" {val});\"></td>")
@@ -53,6 +61,34 @@ def make_color_matrix(norm_values, col_length, row_length):
                     if type(val) == int]
                     for i in range(0, (col_length + 1) * 
                                     row_length, row_length)]
+
+
+def add_image_to_json(img_id):
+    with open("img_db/img_db_lookup.json", "r") as json_file_read:
+        json_db = json.load(json_file_read)
+
+    json_db['alignment_images'].append({
+        "image": f"{img_id}.png",
+        "matrix_type": session["matrix_type"],
+        "pairwise_type": session["pairwise_type"],
+        "sequences": [session["seq1"], session["seq2"]],
+    })
+    with open("img_db/img_db_lookup.json", "w") as json_file_write:
+        json.dump(json_db, json_file_write, indent=4)
+
+
+def make_color_matrix_image(norm_values, col_length, row_length):
+    all_values = [(val, val, val) for val in norm_values
+                  if type(val) == int]
+    ratio = row_length / col_length
+
+    im = Image.new("RGB", (row_length, col_length))
+    im.putdata(all_values, scale=ratio)
+    img_id = uuid4()
+    img_url = f"img_db/img/{img_id}.png"
+    im.save(img_url, "PNG")
+    add_image_to_json(img_id)
+    return img_url
 
 
 def pairwise():
@@ -67,7 +103,8 @@ def pairwise():
     new_values = normalise(all_values)
     col_length, row_length = \
         len(alignmatrix.matrix), len(alignmatrix.matrix[0])
-    color_matrix = make_color_matrix(new_values, col_length, row_length)
+    # color_matrix = make_color_matrix_html(new_values, col_length, row_length)
+    color_matrix = make_color_matrix_image(new_values, col_length-1, row_length-1)
     return color_matrix
 
 
@@ -80,18 +117,34 @@ def direct_check():
     new_values = normalise(all_values)
     col_length, row_length = \
         len(session["seq2"]), len(session["seq1"])
-    color_matrix = make_color_matrix(new_values, col_length, row_length)
+    # color_matrix = make_color_matrix_html(new_values, col_length, row_length)
+    color_matrix = make_color_matrix_image(new_values, col_length, row_length)
     return color_matrix 
+
+
+def check_json_db():
+    with open("img_db/img_db_lookup.json", "r") as json_file:
+        json_db = json.load(json_file)
+    for img in json_db["alignment_images"]:
+        if img["matrix_type"] != session["matrix_type"] or\
+        img["sequences"] != [session["seq1"], session["seq2"]] or\
+            img["pairwise_type"] != session["pairwise_type"]:
+            return None
+        else:
+            return f'img_db/img/{json_db["image"]}'
 
 
 @app.route('/result')
 def result():
-    if session["matrix_type"] == 'pairwise':
-        color_matrix = pairwise()
-    elif session["matrix_type"] == 'direct_check':
-        color_matrix = direct_check()
+    color_matrix = check_json_db()
+    if color_matrix is None:
+        if session["matrix_type"] == 'pairwise':
+            color_matrix = pairwise()
+        elif session["matrix_type"] == 'direct_check':
+            color_matrix = direct_check()
     return render_template('result.html',
-                           data=color_matrix)
+                           image_path=Markup(
+                               f"<img src=\"/{color_matrix}\">"))
 
 
 if __name__ == '__main__':

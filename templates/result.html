@@ -6,14 +6,6 @@
     <link rel="stylesheet" type="text/css" href="../static/style.css">
 </head>
 <body>
-    <table class="dotplot">
-        {% for row in data %}
-            <tr class="dotplot_row">
-            {% for el in row %}
-                {{ el }}
-            {% endfor %}
-            </tr>
-        {% endfor %}
-    </table>
+    {{ image_path }}
 </body>
 </html>
