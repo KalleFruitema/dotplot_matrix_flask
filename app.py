@@ -14,20 +14,38 @@ app = Flask(__name__)
 app.secret_key = b'\xf0?a\x9a\\\xff\xd4;\x0c\xcbHi'
 
 
+def try_get_request(varname):
+    try:
+        if request.form[varname] == "":
+            return False
+        session[varname] = request.form[varname]
+        return True
+    except Exception:
+        return False
+
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     session.clear()
+    error = ""
     if request.method == "POST":
-        session["seq1"] = request.form['seq1']
-        session["seq2"] = request.form['seq2']
-        session["matrix_type"] = request.form['matrix_type']
-        session["seqtype"] = request.form['seqtype']
-        try:
-            session["pairwise_type"] = request.form["pairwise_type"]
-        except Exception:
+        for var in ["seq1", "seq2", "matrix_type", "seqtype"]:
+            succes = try_get_request(var)
+            if not succes:
+                error = f"\"{var}\" entered incorrectly!"
+                return render_template("home.html",
+                                       error=error)
+        if session["matrix_type"] == "direct_check":
             session["pairwise_type"] = None
+        else:
+            try:
+                session["pairwise_type"] = request.form["pairwise_type"]
+            except Exception:
+                session["pairwise_type"] = "N-W"
+
         return redirect(url_for('result'))
-    return render_template("home.html")
+    return render_template("home.html",
+                           error="")
 
 
 def get_scorematrix():
@@ -64,7 +82,7 @@ def make_color_matrix_html(norm_values, col_length, row_length):
 
 
 def add_image_to_json(img_id):
-    with open("img_db/img_db_lookup.json", "r") as json_file_read:
+    with open("static/img_db/img_db_lookup.json", "r") as json_file_read:
         json_db = json.load(json_file_read)
 
     json_db['alignment_images'].append({
@@ -73,7 +91,7 @@ def add_image_to_json(img_id):
         "pairwise_type": session["pairwise_type"],
         "sequences": [session["seq1"], session["seq2"]],
     })
-    with open("img_db/img_db_lookup.json", "w") as json_file_write:
+    with open("static/img_db/img_db_lookup.json", "w") as json_file_write:
         json.dump(json_db, json_file_write, indent=4)
 
 
@@ -85,7 +103,7 @@ def make_color_matrix_image(norm_values, col_length, row_length):
     im = Image.new("RGB", (row_length, col_length))
     im.putdata(all_values, scale=ratio)
     img_id = uuid4()
-    img_url = f"img_db/img/{img_id}.png"
+    img_url = f"static/img_db/img/{img_id}.png"
     im.save(img_url, "PNG")
     add_image_to_json(img_id)
     return img_url
@@ -94,7 +112,8 @@ def make_color_matrix_image(norm_values, col_length, row_length):
 def pairwise():
     scorematrix = get_scorematrix()
     alignmatrix = AlignMatrix(session["seq1"], session["seq2"],
-                              scorematrix, aligntype='N-W')
+                              scorematrix, aligntype=session["pairwise_type"])
+
     all_values = [((int(val.__repr__()) + 0.00000000001) / 
                    (val.get_steps() + 1))
                   if type(val) == Score else val
@@ -123,15 +142,17 @@ def direct_check():
 
 
 def check_json_db():
-    with open("img_db/img_db_lookup.json", "r") as json_file:
+    with open("static/img_db/img_db_lookup.json", "r") as json_file:
         json_db = json.load(json_file)
     for img in json_db["alignment_images"]:
-        if img["matrix_type"] != session["matrix_type"] or\
-        img["sequences"] != [session["seq1"], session["seq2"]] or\
-            img["pairwise_type"] != session["pairwise_type"]:
-            return None
-        else:
-            return f'img_db/img/{json_db["image"]}'
+        if img["matrix_type"] == session["matrix_type"] and\
+        img["sequences"][0] == session["seq1"] and\
+            img["sequences"][1] == session["seq2"] and\
+                img["pairwise_type"] == session["pairwise_type"]:
+            print("Query in database already!")
+            return f'static/img_db/img/{img["image"]}'
+    return None
+            
 
 
 @app.route('/result')
@@ -142,9 +163,9 @@ def result():
             color_matrix = pairwise()
         elif session["matrix_type"] == 'direct_check':
             color_matrix = direct_check()
+    print(color_matrix)
     return render_template('result.html',
-                           image_path=Markup(
-                               f"<img src=\"/{color_matrix}\">"))
+                           image_path=Markup(f'<img src=\"../{color_matrix}\">'))
 
 
 if __name__ == '__main__':

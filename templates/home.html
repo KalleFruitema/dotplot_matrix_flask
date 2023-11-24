@@ -20,7 +20,9 @@
         <input type="checkbox" id="pairwise_type" name="pairwise_type" value="S-W">
         <label for="pairwise_type">Local alignment (pairwise only)</label>
         <button type="submit">Calculate</button>
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
     </form>
-    <img src="img_db\img\54cbf825-06f5-4d15-a63d-cb106c1938ad.png">
 </body>
 </html>
