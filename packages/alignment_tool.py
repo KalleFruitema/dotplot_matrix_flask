@@ -1,14 +1,3 @@
-"""
-DISCLAIMER
-Dit programma werkt voor de sequenties die ik voor BSEQAN heb
-gekregen, maar ik kan niet garanderen dat dit ook werkt met 
-andere sequenties. Sterker nog, ik weet wel zeker dat het niet 
-altijd werkt. Maarja dit programma is toch voor de lol en ik heb
-hier al te veel hoofdpijn van gekregen om het programma nog volledig
-compatible te maken met alles wat je invoert. ¯\_(ツ)_/¯
-"""
-
-
 from pprint import pprint
 from copy import deepcopy
 from time import perf_counter
@@ -248,8 +237,8 @@ class AlignMatrix(Matrix):
         for i, char in enumerate(self.alignment[1]):
             if char in "|*":
                 gap = False
-                real_score += int(scorematrix.get_score(self.alignment[0][i],
-                                                        self.alignment[2][i]))
+                real_score += float(scorematrix.get_score(self.alignment[0][i],
+                                                          self.alignment[2][i]))
             else:
                 if gap == False:
                     real_score += gap_open
@@ -325,7 +314,8 @@ class Score:
 
 
 class DistanceMatrix(Matrix):
-    def __init__(self, sequences: str=None, scorematrix: ScoreMatrix=None, matrix_filepath: str=None) -> None:
+    def __init__(self, sequences: str=None, scorematrix: ScoreMatrix=None, 
+                 matrix_filepath: str=None, alignments_outfile: str='') -> None:
         super().__init__()
         self.scorematrix = scorematrix
         if sequences == None == matrix_filepath:
@@ -334,7 +324,8 @@ class DistanceMatrix(Matrix):
             raise ValueError("Both \'sequences\' and \'matrix_filepath\' were given while exactly one is allowed.")
         if sequences != None: 
             sequences = self.__make_sequence_dict(sequences)
-            alignment_dict = self.__get_alignments(sequences)
+            alignment_dict = self.__get_alignments(sequences, 
+                                                   outfile=alignments_outfile)
             self.distmatrix = self.__make_matrix(sequences, alignment_dict)
         else:
             self.distmatrix = self.read_csv(matrix_filepath)
@@ -342,7 +333,7 @@ class DistanceMatrix(Matrix):
                 for x, z in enumerate(y):
                     if z.isnumeric():
                         try:
-                            self.sequences[i][x] = int(x)
+                            self.sequences[i][x] = float(x)
                         except Exception:
                             continue
 
@@ -357,18 +348,29 @@ class DistanceMatrix(Matrix):
                 })
         return seq_dict
 
-    def __get_alignments(self, sequences):
+    def __get_alignments(self, sequences, outfile: str=''):
         alignment_dict = {}
+        file_content = ''
         for header, seq in sequences.items():
             alignment_dict.update({
                 header : {}
             })
             for header2, seq2 in sequences.items():
                 alignment = AlignMatrix(seq, seq2, self.scorematrix, aligntype="S-W")
+                align_annotation = alignment.get_alignment()
+                if outfile:
+                    if f"{header}\n{header2}" not in file_content and\
+                    f"{header2}\n{header}" not in file_content:
+                        file_content += (f"{header}\n{header2}\n"
+                                         f"{'\n'.join(''.join(line) for line in align_annotation)}\n\n")
                 score = alignment.get_real_alignscore()
                 alignment_dict[header].update({
                     header2: score
                 })
+        if outfile:
+            with open(outfile, 'w') as alignment_file:
+                alignment_file.write(file_content)
+        # pprint(alignment_dict, sort_dicts=False)
         return alignment_dict
 
     def __make_sequence_dict(self, sequences):
@@ -541,16 +543,16 @@ class DistanceMatrix(Matrix):
                     check_tree_vals.pop(check_tree_vals.index(check.__repr__()))
                     
                 if check.__repr__().index(tree_val.__repr__()) == 0:
-                    tree_str = tree_str.replace("1?", f"{round(check.distance/2 - tree_val.distance/2, 2)}")
+                    tree_str = tree_str.replace("1?", f"{check.distance/2 - tree_val.distance/2}")
                 else:
-                    tree_str = tree_str.replace("2?", f"{round(check.distance/2 - tree_val.distance/2, 2)}")
+                    tree_str = tree_str.replace("2?", f"{check.distance/2 - tree_val.distance/2}")
                 tree_str = tree_str.replace(tree_val.__repr__(), tree_val.tree_notation)
                 check_tree_vals.pop(check_tree_vals.index(tree_val.__repr__()))
 
         if len(check_tree_vals) != 0:
             missed = [i for i in tree_vals if i.__repr__() in check_tree_vals][0]
             x, y = tree_str[::-1].split(":", 1)
-            x = round(missed.distance/2 - float(x[::-1].strip()), 2)
+            x = missed.distance/2 - float(x[::-1].strip())
             y = y[::-1]
             tree_str = f"{y}:{x}"
             tree_str += f",{missed.tree_notation}"
@@ -603,12 +605,12 @@ class OTUpair:
             self.seq2 = seq2
             self.comb_seq = f"{seq1},{seq2}"
             if self.comb_seq.count(",") == 1:
-                self.tree_notation = f"({seq1}:{round(distance/2, 2)},{seq2}:{round(distance/2, 2)})"
+                self.tree_notation = f"({seq1}:{distance/2},{seq2}:{distance/2})"
             else:
-                self.tree_notation = f"({seq1}:1?,{seq2}:2?):{round(self.distance/2, 2)}"
+                self.tree_notation = f"({seq1}:1?,{seq2}:2?):{self.distance/2}"
         else:
             self.comb_seq = f"{seq1}"
-            self.tree_notation = f"{seq1}:{round(distance/2, 2)}"
+            self.tree_notation = f"{seq1}:{distance/2}"
 
     def __str__(self) -> str:
         return self.comb_seq
@@ -658,35 +660,38 @@ def main():
     
     print(alignment2.get_real_alignscore())
 
-    # dm = DistanceMatrix(sequences="tree_seqs.fa", scorematrix=nucl_score_matrix)
+    # dm = DistanceMatrix(sequences="tests/opdracht_seqs.fa", scorematrix=nucl_score_matrix)
     # print(dm)
 
 
 def main2():
-    matrix_path = "kimura_matrix.csv"
+    matrix_path = "tests/kimura_matrix.csv"
     nucl_score_matrix = ScoreMatrix(matrix_path)
 
-    dm = DistanceMatrix(sequences="tree_seqs_test.fa", scorematrix=nucl_score_matrix)
+    dm = DistanceMatrix(sequences="tests/opdracht_seqs.fa", scorematrix=nucl_score_matrix)
     print(dm)
 
 
 def main_opdracht():
-    blosum80 = ScoreMatrix('BLOSUM80.csv')
+    blosum80 = ScoreMatrix('tests/BLOSUM80.csv')
 
-    t1 = perf_counter()
-    dm2 = DistanceMatrix(sequences="opdracht_seqs.fa", scorematrix=blosum80)
-    t2 = perf_counter()
-    print(dm2)
-    print(f"\n\nTook {t2-t1} seconds.")
+    # t1 = perf_counter()
+    # dm2 = DistanceMatrix(sequences="tests/opdracht_seqs.fa", scorematrix=blosum80)
+    # t2 = perf_counter()
+    # print(dm2)
+    # print(f"\n\nTook {t2-t1} seconds.")
 
-    dm2.make_tree(outputfile="bseqan_phylo_tree.ph", prints=True)
+    # dm2.make_tree(outputfile="bseqan_phylo_tree.ph", prints=True)
 
     t3 = perf_counter()
-    dm3 = DistanceMatrix(sequences="opdracht_seqs_namen.fa", scorematrix=blosum80)
+    dm3 = DistanceMatrix(sequences="tests/opdracht_seqs_namen.fa", scorematrix=blosum80,
+                         alignments_outfile="tests/alignments.txt")
     t4 = perf_counter()
+    # print(dm3)
+    print(f"\n\nTook {t4-t3} seconds.")
     
-    dm3.make_tree(outputfile="bseqan_phylo_tree_namen.ph")
+    dm3.make_tree(outputfile="tests/bseqan_phylo_tree_namen_2.ph")
 
 
 if __name__ == "__main__":
-    main()
+    main_opdracht()

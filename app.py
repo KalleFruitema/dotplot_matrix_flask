@@ -2,10 +2,12 @@ from markupsafe import Markup
 from math import floor
 from pprint import pprint
 import json
+from typing import Any
 
 from flask import Flask, render_template, url_for, redirect, session, request
 from PIL import Image
 from uuid import uuid4
+from werkzeug.wrappers.response import Response
 
 from packages.alignment_tool import ScoreMatrix, AlignMatrix, Score
 
@@ -14,7 +16,7 @@ app = Flask(__name__)
 app.secret_key = b'\xf0?a\x9a\\\xff\xd4;\x0c\xcbHi'
 
 
-def try_get_request(varname):
+def try_get_request(varname) -> bool:
     try:
         if request.form[varname] == "":
             return False
@@ -25,7 +27,7 @@ def try_get_request(varname):
 
 
 @app.route('/', methods=['GET', 'POST'])
-def home():
+def home() -> str | Response:
     session.clear()
     error = ""
     if request.method == "POST":
@@ -48,7 +50,7 @@ def home():
                            error="")
 
 
-def get_scorematrix():
+def get_scorematrix() -> ScoreMatrix:
     if session["seqtype"] == "ntseq":
         scorematrix_path = 'static/matrixes/kimura_matrix.csv'
     elif session["seqtype"] == "aaseq":
@@ -57,7 +59,7 @@ def get_scorematrix():
     return scorematrix
 
 
-def normalise(values):
+def normalise(values) -> list[Any]:
     num_values = [val for val in values if type(val) in [int, float]]
     old_min = min(num_values)
     old_range = max(num_values) - old_min
@@ -71,7 +73,7 @@ def normalise(values):
 
 
 # OUTDATED
-def make_color_matrix_html(norm_values, col_length, row_length):
+def make_color_matrix_html(norm_values, col_length, row_length) -> list[list[Markup]]:
     return [[Markup("<td class=\"dotplot_cell\" "
                     f"style=\"background: rgb({val}, {val},"
                     f" {val});\"></td>")
@@ -81,7 +83,7 @@ def make_color_matrix_html(norm_values, col_length, row_length):
                                     row_length, row_length)]
 
 
-def add_image_to_json(img_id):
+def add_image_to_json(img_id) -> None:
     with open("static/img_db/img_db_lookup.json", "r") as json_file_read:
         json_db = json.load(json_file_read)
 
@@ -95,7 +97,7 @@ def add_image_to_json(img_id):
         json.dump(json_db, json_file_write, indent=4)
 
 
-def make_color_matrix_image(norm_values, col_length, row_length):
+def make_color_matrix_image(norm_values, col_length, row_length) -> str:
     all_values = [(val, val, val) for val in norm_values
                   if type(val) == int]
     ratio = row_length / col_length
@@ -109,7 +111,7 @@ def make_color_matrix_image(norm_values, col_length, row_length):
     return img_url
 
 
-def pairwise():
+def pairwise() -> str:
     scorematrix = get_scorematrix()
     alignmatrix = AlignMatrix(session["seq1"], session["seq2"],
                               scorematrix, aligntype=session["pairwise_type"])
@@ -127,7 +129,7 @@ def pairwise():
     return color_matrix
 
 
-def direct_check():
+def direct_check() -> str:
     scorematrix = get_scorematrix()
     all_values = [int(scorematrix.get_score(nuc1, nuc2))
                   for nuc1 in session["seq2"]
@@ -141,7 +143,7 @@ def direct_check():
     return color_matrix 
 
 
-def check_json_db():
+def check_json_db() -> str | None:
     with open("static/img_db/img_db_lookup.json", "r") as json_file:
         json_db = json.load(json_file)
     for img in json_db["alignment_images"]:
@@ -156,7 +158,7 @@ def check_json_db():
 
 
 @app.route('/result')
-def result():
+def result() -> str:
     color_matrix = check_json_db()
     if color_matrix is None:
         if session["matrix_type"] == 'pairwise':
@@ -170,3 +172,4 @@ def result():
 
 if __name__ == '__main__':
     app.run(debug=True)
+ 
